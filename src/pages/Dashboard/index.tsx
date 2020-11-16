@@ -23,6 +23,22 @@ interface Transaction {
   created_at: Date;
 }
 
+interface ApiTransaction {
+  id: string;
+  title: string;
+  type: 'income' | 'outcome';
+  value: number;
+  category_id: string;
+  created_at: Date;
+  updated_at: Date;
+  category: {
+    id: string;
+    title: string;
+    created_at: Date;
+    updated_at: Date;
+  };
+}
+
 interface Balance {
   income: string;
   outcome: string;
@@ -30,13 +46,39 @@ interface Balance {
 }
 
 const Dashboard: React.FC = () => {
-  //  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [balance, setBalance] = useState<Balance>({} as Balance);
 
   useEffect(() => {
     async function loadTransactions(): Promise<void> {
       const response = await api.get('/transactions');
       setBalance(response.data.balance);
+
+      const transactionsWithoutFormat: ApiTransaction[] =
+        response.data.transactions;
+      const transactionsWithFormat: Transaction[] = [];
+
+      transactionsWithoutFormat.forEach(transaction => {
+        transactionsWithFormat.push({
+          id: transaction.id,
+          title: transaction.title,
+          value: transaction.value,
+          formattedValue: formatValue(transaction.value),
+          formattedDate: new Date(transaction.created_at).toLocaleDateString(
+            'pt-BR',
+            {
+              timeZone: 'UTC',
+            },
+          ),
+          type: transaction.type,
+          category: {
+            title: transaction.category.title,
+          },
+          created_at: transaction.created_at,
+        });
+      });
+
+      setTransactions(transactionsWithFormat);
     }
 
     loadTransactions();
@@ -88,18 +130,18 @@ const Dashboard: React.FC = () => {
             </thead>
 
             <tbody>
-              <tr>
-                <td className="title">Computer</td>
-                <td className="income">R$ 5.000,00</td>
-                <td>Sell</td>
-                <td>20/04/2020</td>
-              </tr>
-              <tr>
-                <td className="title">Website Hosting</td>
-                <td className="outcome">- R$ 1.000,00</td>
-                <td>Hosting</td>
-                <td>19/04/2020</td>
-              </tr>
+              {transactions.map(transaction => (
+                <tr key={transaction.id}>
+                  <td className="title">{transaction.title}</td>
+                  <td className={transaction.type}>
+                    {transaction.type === 'outcome'
+                      ? `- ${transaction.formattedValue}`
+                      : transaction.formattedValue}
+                  </td>
+                  <td>{transaction.category.title}</td>
+                  <td>{transaction.formattedDate}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </TableContainer>
